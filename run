@@ -1,0 +1,4 @@
+#!/usr/bin/bash
+rm life
+gcc -Wall -Wextra -Werror -o life life.c -pthread -O1
+./life "$@"

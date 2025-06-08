@@ -1,0 +1,2 @@
+#!/usr/bin/bash
+gcc -o life life.c -Wall -Wextra -Werror
