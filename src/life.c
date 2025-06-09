@@ -17,12 +17,6 @@
 
 #include "border.c"
 
-volatile int ready_to_quit;
-volatile int paused;
-volatile int just_unpaused;
-volatile int just_paused;
-volatile int next_gen;
-
 #define BIT(num, i, size) ((num>>(size-1-i))&1)
 #define SETBIT(num, i, size) num |= 1<<(size-1-i);
 
@@ -53,8 +47,33 @@ void sleepns(unsigned long long ns) {
 	nanosleep(&tim, &tim2);
 }
 
-void term_too_small_display(uhex rows, uhex cols) {
-	wprintf(L"\x1b[2J\x1b[;f%lux%lu", cols, rows);
+//void term_too_small_display(uhex rows, uhex cols) {
+//	wprintf(L"\x1b[2J\x1b[;f%lux%lu", cols, rows);
+//}
+
+void display_paused_notif() {
+#ifdef _WIN32
+	HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+	// all the '6's here are just because that's the length of the string 'PAUSED'
+	COORD note_Size = { 6, 1 };
+	COORD zerozero = { 0, 0 };
+	SMALL_RECT note_Region = { (COLS>>1)-2,(ROWS>>1)+1, (COLS>>1)+4,(ROWS>>1)+1 };
+	CHAR_INFO note_Buffer[6] = {};
+	const wchar_t note_display[6] = L"PAUSED";
+	for (int i=0; i<6; ++i) {
+		note_Buffer[i].Char.UnicodeChar = note_display[i];
+		note_Buffer[i].Attributes = 0b0111;
+	}
+	WriteConsoleOutputW(
+			hConsole,
+			note_Buffer,
+			note_Size,
+			zerozero,
+			&note_Region);
+#else
+	wprintf(L"\x1b[%lu;%lufPAUSED", (ROWS>>1)+2, (COLS>>1)-1);
+	fflush(stdout);
+#endif
 }
 
 #ifdef _WIN32
@@ -101,7 +120,7 @@ void print_grid(cell8* grid) {
 				&curRow_Region);
 	}
 
-	if (paused) {
+	/*if (paused) {
 		COORD note_Size = { 6, 1 };
 		SMALL_RECT note_Region = { (COLS>>1)-2,(ROWS>>1)+1, (COLS>>1)+4,(ROWS>>1)+1 };
 		CHAR_INFO note_Buffer[6] = {};
@@ -117,7 +136,7 @@ void print_grid(cell8* grid) {
 				note_Size,
 				upper_left_Coord,
 				&note_Region);
-	}	
+	}*/
 
 	/*	
 	clock_t end = clock();
@@ -129,7 +148,7 @@ void print_grid(cell8* grid) {
 // not windows version of the print_grid function
 void print_grid(cell8* grid) {
 	//clock_t start = clock();
-	wprintf(L"\x1b[2;2f\x1b[?25l");
+	wprintf(L"\x1b[2;2f");
 	// we handle the rows in pairs because it makes the cells look more square
 	for (uhex row = 0; row < ROWS; row += 2) {
 		for (uhex col = 0; col < COLS; ++col) {
@@ -149,15 +168,7 @@ void print_grid(cell8* grid) {
 		}
 		wprintf(L"\x1b[1B\x1b[%uD", COLS);
 	}
-	wprintf(L"\n");
-
-	if (paused) {
-		wprintf(L"\x1b[%lu;%lufPAUSED", 
-				(ROWS>>1)+2,
-				(COLS>>1)-1);
-	}
-
-	wprintf(L"\x1b[%lu;1f\x1b[?25h", (ROWS>>1)+3);
+	wprintf(L"\n\x1b[%lu;1f", (ROWS>>1)+3);
 
 	fflush(stdout);
 
@@ -216,6 +227,91 @@ cell8* update(cell8* grid) {
 	return new_grid;
 }
 
+void help_screen() {
+	uhex row_change = 0;
+	if (COLS < 30) {
+		row_change = (ROWS>>2)+6;
+	}
+	printbox(
+			30,7, //size
+			(row_change==0) ? ((COLS>>1)-14) : (0),(ROWS>>2)-2+row_change, //pos
+			W1T1_BORDERCHARS,
+			1);
+	uhex write_col = (row_change==0) ? ((COLS>>1)-14+1+10-9) : 2;
+#ifdef _WIN32
+	HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+	COORD row_Size = { 28, 1 };
+	COORD zerozero = { 0, 0 };
+	SMALL_RECT msg_Regions[6] = {};
+	msg_Regions[0] = (SMALL_RECT){
+		(row_change==0) ? ((COLS>>1)-8) : 6,
+		(ROWS>>2)-1+row_change-1,
+		(row_change==0) ? ((COLS>>1)-8+17) : 23,
+		(ROWS>>2)-1+row_change-1
+	};
+	for (int i=1; i<6; ++i) {
+		msg_Regions[i] = (SMALL_RECT){
+			write_col-1, (ROWS>>2)+row_change+i-2,
+			write_col+28-1, (ROWS>>2)+row_change+i-2
+		};
+	}
+	CHAR_INFO msg_Buffers[6][28] = {};
+	const wchar_t* msgs[6] = {
+		L"KEYBOARD SHORTCUTS",
+		L"q: quit the program         ",
+		L"p: (un)pause the simulation ",
+		L"n: advance by one generation",
+		L"?: show this help message   ",
+		L"esc: exit menus (like this) ",
+	};
+	for (size_t c=0; c<28; ++c) {
+		msg_Buffers[0][c].Char.UnicodeChar = msgs[0][c];
+		msg_Buffers[0][c].Attributes = 0b0111;
+	}
+	WriteConsoleOutputW(
+			hConsole,
+			msg_Buffers[0],
+			row_Size,
+			zerozero,
+			&msg_Regions[0]);
+	for (int i=1; i<6; ++i) {
+		for (size_t c=0; c<28; ++c) {
+			msg_Buffers[i][c].Char.UnicodeChar = msgs[i][c];
+			msg_Buffers[i][c].Attributes = 0b0111;
+		}
+		WriteConsoleOutputW(
+				hConsole,
+				msg_Buffers[i],
+				row_Size,
+				zerozero,
+				&msg_Regions[i]);
+	}
+#else
+	wprintf(L"\x1b[%lu;%lufKEYBOARD SHORTCUTS", 
+			(ROWS>>2)-1+row_change,
+			(row_change==0) ? ((COLS>>1)-14+6+10-9) : 7);
+	wprintf(L"\x1b[%lu;%lufq: quit the program"
+			L"\x1b[%lu;%lufp: (un)pause the simulation"
+			L"\x1b[%lu;%lufn: advance by one generation"
+			L"\x1b[%lu;%luf?: show this help message"
+			L"\x1b[%lu;%lufesc: exit menus (like this)",
+			(ROWS>>2)+row_change,
+			write_col,
+			(ROWS>>2)+row_change+1,
+			write_col,
+			(ROWS>>2)+row_change+2,
+			write_col,
+			(ROWS>>2)+row_change+3,
+			write_col,
+			(ROWS>>2)+row_change+4,
+			write_col);
+	// there's gotta be a better way to write that, right?
+
+	fflush(stdout);
+#endif
+}
+
+/*
 #ifdef _WIN32
 DWORD WINAPI poll_input_thread() {
 	char ch;
@@ -278,6 +374,7 @@ void* poll_input_thread() {
 	return NULL;
 }
 #endif
+*/
 
 int main(int argc, char *argv[]) {
 	// define the locale to support Windows and other platforms (since Windows wants a different value for some reason)
@@ -339,23 +436,8 @@ int main(int argc, char *argv[]) {
 	grid[22*CC+2] = 0b00000100;
 	grid[22*CC+3] = 0b10000000;
 	
-	wprintf(L"\x1b[2J");
+	wprintf(L"\x1b[2J\x1b[?25l"); // clears the screen and hides the cursor
 	print_grid(grid);
-	
-	#ifdef _WIN32
-	DWORD dwPollingThread;
-	//HANDLE hPollingThread = 
-		CreateThread(
-			NULL,
-			0,
-			poll_input_thread,
-			NULL,
-			0,
-			&dwPollingThread);
-	#else
-	pthread_t input_polling_thread;
-	pthread_create(&input_polling_thread, NULL, poll_input_thread, NULL);
-	#endif
 	
 	printbox(
 			COLS+2,(ROWS>>1)+2,
@@ -365,13 +447,102 @@ int main(int argc, char *argv[]) {
 
 	//int was_too_small = 0;
 	
+	char ch;
+	int ready_to_quit = 0;
+	int in_a_menu = 0;
+	int paused = 0;
+	
+	#ifndef _WIN32
+	struct termios old_term, new_term;
+	tcgetattr(STDIN_FILENO, &old_term);
+	new_term = old_term;
+	new_term.c_lflag &= ~(ICANON | ECHO);
+	new_term.c_cc[VMIN] = 0;
+	new_term.c_cc[VTIME] = 0;
+	tcsetattr(STDIN_FILENO, TCSANOW, &new_term);
+	#endif
+
 	while (1) {
-		__sync_synchronize();
+		// keyboard input polling (moved into this loop from a separate thread because apparently a thread sucks for this)
+		#ifdef _WIN32
+		if (kbhit()) {
+			ch = getch();
+		#else
+		if (read(STDIN_FILENO, &ch, 1) == 1) {
+		#endif
+			switch (ch) {
+				case 'q':
+				case 'Q':
+					ready_to_quit = 1;
+					break;
+				case 'p':
+				case 'P':
+					if (!in_a_menu) {
+						paused ^= 1; // efficiently invert the value of `paused`
+						if (paused) {
+							display_paused_notif();
+						} else {
+							printbox(
+									COLS+2,(ROWS>>1)+2,
+									0,0,
+									W1T1_BORDERCHARS,
+									0);
+						}
+					}
+					break;
+				case 'n':
+				case 'N':
+					if (paused && !in_a_menu) {
+						// it'd be weird if this did something even when it isn't paused
+						cell8* new_grid = update(grid);
+						memcpy(grid, new_grid, GRID_EL_N);
+						free(new_grid);
+						print_grid(grid);
+					}
+					break;
+				case 'h':
+				case 'H':
+				case '?':
+					paused = 1;
+					display_paused_notif();
+					in_a_menu = 1;
+					help_screen();
+					break;
+				case 27: // the escape key
+					in_a_menu = 0;
+					if (COLS>=30) {
+						print_grid(grid);
+					} else {
+						printbox(
+								30,7,
+								0,(ROWS>>1)+3,
+								INVIS_BORDERCHARS,
+								1);
+					#ifndef _WIN32
+						fflush(stdout);
+					#endif
+					}
+					break;
+			}
+		}
+
 		if (ready_to_quit) {
+			if (in_a_menu) {
+				in_a_menu = 0;
+				if (COLS>=30) {
+					print_grid(grid);
+				} else {
+					printbox(
+							30,7,
+							0,(ROWS>>1)+3,
+							INVIS_BORDERCHARS,
+							1);
+					fflush(stdout);
+				}
+			}
 			wprintf(L"\x1b[%lu;1f", (ROWS>>1)+3);
 			break;
 		}
-
 		// check if terminal size is too small
 		/*uhex rows, cols;
 		get_term_size(&rows, &cols);
@@ -391,32 +562,10 @@ int main(int argc, char *argv[]) {
 		}*/
 
 		// generate the new grid and update the old one
-		__sync_synchronize();
-		
-		if (just_unpaused) {
-			printbox(
-					COLS+2,(ROWS>>1)+2,
-					0,0,
-					W1T1_BORDERCHARS,
-					0);
-			just_unpaused = 0;
-		}
-		if (just_paused) {
-			print_grid(grid);
-			just_paused = 0;
-		}
-		__sync_synchronize();
-
 		if (!paused) {
-			print_grid(grid);
 			cell8* new_grid = update(grid);
 			memcpy(grid, new_grid, GRID_EL_N);
 			free(new_grid);
-		} else if (next_gen) {
-			cell8* new_grid = update(grid);
-			memcpy(grid, new_grid, GRID_EL_N);
-			free(new_grid);
-			next_gen = 0;
 			print_grid(grid);
 		}
 
@@ -426,6 +575,11 @@ int main(int argc, char *argv[]) {
 		sleepns(1000000000/20); // sleeps to keep a framerate (`sleepns` takes nanoseconds)
 		#endif
 	}
+
+	#ifndef _WIN32
+	tcsetattr(STDIN_FILENO, TCSANOW, &old_term);
+	wprintf(L"\x1b[?25h");
+	#endif
 
 	free(grid);
 
