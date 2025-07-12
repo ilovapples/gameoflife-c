@@ -8,9 +8,26 @@ $ ./life 48x48
 ```
 
 # -- BUILD --
-Build with nob.h:
+Build with make:
 ```sh
-$ gcc -o nob nob.c
-$ ./nob
+$ make
 ```
-GCC figures out what platform to compile for automatically, and the executable will pop out in the `build/` folder.
+The Makefile will build both `cst` (or `cst.exe` on Windows) (see below) and `life` (or `life.exe` on Windows) and the executables will pop out in the `build/` folder.
+
+# -- CST --
+`cst` is a tool that converts files containing a textual representation of an initial grid state (and dimensions) to a binary file containing the same information.
+So far, this tool is effectively useless, since the viewer (`life`) can't actually read the files into memory yet. That'll probably be the next commit, whenever I feel like writing it.
+`states/s0.txt` contains an example of the format for the input to `cst`. Here's a minimal example (the more astute among those reading this will recognize the 'glider' pattern):
+```
+8x8
+------#-
+-----#--
+-----###
+--------
+--------
+--------
+--------
+--------
+```
+
+The dead cells must be specified by a `-` character, while alive cells must be specified by a `#` character. The character between the two dimensions (col x row) may be `x` or `' '` (a space character, `'\x20'` in ASCII).

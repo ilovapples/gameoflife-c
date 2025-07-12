@@ -1,3 +1,6 @@
+#ifndef BORDER_CHARS_H
+#define BORDER_CHARS_H
+
 #include <wchar.h>
 const wchar_t BASIC_BORDERCHARS[8] = {
 	L'-',
@@ -135,3 +138,5 @@ const wchar_t W2T1_GRIDCHARS[13] = {
 	L'\x2560',
 	L'\x256C'
 };
+
+#endif /* BORDER_CHARS_H */
