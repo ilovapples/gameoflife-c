@@ -85,10 +85,10 @@ int32_t parse_cmd_args_for_paths(struct FileData files[MAX_FILES_AT_ONCE], int32
 {
 	uint32_t num_paths = 0;
 	// reads args from right to left, it's probably fine because the order doesn't actually matter
-	while (--argc) {
-		if (argv[argc][0] != '-') {
+	while (--argc)
+		if (argv[argc][0] != '-')
 			files[num_paths++].path = argv[argc];
-		} else {
+		else {
 			if (argv[argc][1] == '-') { // if the arg starts with "--" (long arg)
 				if (strcmp(argv[argc]+2, "debug") == 0)
 					SET_FLAG(DEBUG);
@@ -99,7 +99,7 @@ int32_t parse_cmd_args_for_paths(struct FileData files[MAX_FILES_AT_ONCE], int32
 			} else { // if it starts with "-" (short arg or combined short args)
 				char *argp = argv[argc]+1;
 				size_t arg_len = strlen(argp);
-				while (arg_len--)
+				while (--arg_len)
 					switch (argp[arg_len]) {
 						case 'd': SET_FLAG(DEBUG);
 							    break;
@@ -110,7 +110,6 @@ int32_t parse_cmd_args_for_paths(struct FileData files[MAX_FILES_AT_ONCE], int32
 					}
 			}
 		}
-	}
 
 	if (num_paths == 0 || num_paths > MAX_FILES_AT_ONCE) {
 		return 0;

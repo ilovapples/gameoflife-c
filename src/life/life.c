@@ -8,23 +8,24 @@
 #include <locale.h>
 
 #ifdef _WIN32
-  #include <windows.h>
-  #include <conio.h>
+	#include <windows.h>
+	#include <conio.h>
 #else
-  #include <termios.h>
-  #include <unistd.h>
+	#include <termios.h>
+	#include <unistd.h>
 #endif
 
 
 #include "border.h"
 #include "border_chars.h"
 
-#define BIT(num, i) ((num>>(7-i))&1)
-#define SETBIT(num, i) num |= 1<<(7-i);
+#define GETBIT(num, i) ((num>>(7-i))&1)
+#define SETBIT(num, i) (num |= 1<<(7-i))
 
 #define HELP_MENU_WIDTH 30
 #define HELP_MENU_HEIGHT 7
 
+const char *PROG_NAME;
 uint16_t ROWS = 48;
 uint16_t COLS = 48;
 uint16_t CC = 6; // COLS>>3;
@@ -41,6 +42,16 @@ const wchar_t alive_cell_full = L'\x2588';
 const wchar_t alive_cell_top = L'\x2580';
 const wchar_t alive_cell_bottom = L'\x2584';
 const wchar_t dead_cell_full = L' ';
+
+#define BIT(i) (1<<(i))
+#define FLAG_SET(f) ((runtime_flags & f) != 0)
+#define SET_FLAG(f) (runtime_flags |= f)
+#define IFDBG if (FLAG_SET(DEBUG))
+
+enum FLAGS {
+	DEBUG = BIT(0)
+};
+static uint8_t runtime_flags = 0;
 
 void sleepns(unsigned long long ns)
 {
@@ -86,9 +97,9 @@ void display_paused_notif()
 // windows version of the print_grid function
 void print_grid(uint8_t *grid)
 {
-	#ifdef LIFE_DEBUG
-	clock_t start = clock();
-	#endif
+	clock_t start;
+	IFDBG start = clock();
+
 	HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
 	if (hConsole == INVALID_HANDLE_VALUE) {
 		printf("FAILED TO OBTAIN CONSOLE HANDLE (windows.h)");
@@ -106,12 +117,12 @@ void print_grid(uint8_t *grid)
 				curRow_Buffer[col].Attributes = 0x7; // white (combines red, green, and blue parts)
 			}
 
-			uint8_t top_cell = BIT(grid[((COLS/8)*row + (col/8))], col%8);
+			uint8_t top_cell = GETBIT(grid[((COLS/8)*row + (col/8))], col%8);
 			if (row == (ROWS-1)) {
 				curRow_Buffer[col].Char.UnicodeChar = ((top_cell) ? alive_cell_top : dead_cell_full);
 				continue;
 			}
-			uint8_t bottom_cell = BIT(grid[((COLS/8)*(row+1) + (col/8))], col%8);
+			uint8_t bottom_cell = GETBIT(grid[((COLS/8)*(row+1) + (col/8))], col%8);
 
 			if (top_cell && bottom_cell) {
 				curRow_Buffer[col].Char.UnicodeChar = alive_cell_full;
@@ -129,29 +140,29 @@ void print_grid(uint8_t *grid)
 				&curRow_Region);
 	}
 
-	#ifdef LIFE_DEBUG
-	clock_t end = clock();
-	double elapsed = (double) (end-start) / CLOCKS_PER_SEC;
-	wprintf(L"\x1b[1;1f%.7lf seconds", elapsed);
-	#endif
+	IFDBG {
+		clock_t end = clock();
+		double elapsed = (double) (end-start) / CLOCKS_PER_SEC;
+		wprintf(L"\x1b[1;1f%.7lf seconds", elapsed);
+	}
 }
 #else
 // not windows version of the print_grid function
 void print_grid(uint8_t *grid)
 {
-	#ifdef LIFE_DEBUG
-	clock_t start = clock();
-	#endif
+	clock_t start;
+	IFDBG start = clock();
+
 	wprintf(L"\x1b[2;2f");
 	// we handle the rows in pairs because it makes the cells look more square
 	for (uint16_t row = 0; row < ROWS; row += 2) {
 		for (uint16_t col = 0; col < COLS; ++col) {
-			uint8_t top_cell = BIT(grid[((COLS/8)*row + (col/8))], col%8);
+			uint8_t top_cell = GETBIT(grid[((COLS/8)*row + (col/8))], col%8);
 			if (row == (ROWS-1)) {
 				wprintf(L"%lc", ((top_cell==0) ? dead_cell_full : alive_cell_top));
 				continue;
 			}
-			uint8_t bottom_cell = BIT(grid[((COLS/8)*(row+1) + (col/8))], col%8);
+			uint8_t bottom_cell = GETBIT(grid[((COLS/8)*(row+1) + (col/8))], col%8);
 			if (top_cell && bottom_cell) {
 				wprintf(L"%lc", alive_cell_full);
 			} else if (top_cell != bottom_cell) {
@@ -166,11 +177,11 @@ void print_grid(uint8_t *grid)
 
 	fflush(stdout);
 
-	#ifdef LIFE_DEBUG
-	clock_t end = clock();
-	double elapsed = (double) (end-start)/CLOCKS_PER_SEC;
-	wprintf(L"\x1b[1;1f%.7lf seconds", elapsed);
-	#endif
+	IFDBG {
+		clock_t end = clock();
+		double elapsed = (double) (end-start)/CLOCKS_PER_SEC;
+		wprintf(L"\x1b[1;1f%.7lf seconds", elapsed);
+	}
 }
 #endif
 
@@ -202,12 +213,12 @@ uint8_t *update(uint8_t *grid)
 
 				uint16_t neighbor_i = i + dx + (dy*COLS);
 
-				num_neighbors += BIT(grid[neighbor_i/8], neighbor_i%8);
+				num_neighbors += GETBIT(grid[neighbor_i/8], neighbor_i%8);
 			}
 		}
 
-		if ((BIT(grid[i/8], i%8) && num_neighbors >= 2 && num_neighbors <= 3) || 
-		   (!BIT(grid[i/8], i%8) && num_neighbors == 3))
+		if ((GETBIT(grid[i/8], i%8) && num_neighbors >= 2 && num_neighbors <= 3) || 
+		   (!GETBIT(grid[i/8], i%8) && num_neighbors == 3))
 			SETBIT(new_grid[i/8], i%8);
 	}
 
@@ -232,7 +243,7 @@ void help_screen(void)
 		(row_change==0) 
 			? ((COLS/2)-(HELP_MENU_WIDTH-2)/2+1+10-9) 
 			: 2;
-	#ifdef _WIN32
+#ifdef _WIN32
 	HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
 	COORD row_Size = { 28, 1 };
 	COORD zerozero = { 0, 0 };
@@ -279,7 +290,7 @@ void help_screen(void)
 				zerozero,
 				&msg_Regions[i]);
 	}
-	#else
+#else
 	wprintf(L"\x1b[%lu;%lufKEYBOARD SHORTCUTS", 
 			(ROWS/4)-1+row_change,
 			(row_change==0)
@@ -298,37 +309,115 @@ void help_screen(void)
 	// there's gotta be a better way to write that, right?
 
 	fflush(stdout);
-	#endif
+#endif
 }
 
-int main(int argc, char *argv[])
+void close_help_screen(uint8_t *grid)
+{
+	if (COLS >= HELP_MENU_WIDTH && (ROWS/2) >= HELP_MENU_HEIGHT)
+		print_grid(grid);
+	else {
+		printbox(
+			HELP_MENU_WIDTH, HELP_MENU_HEIGHT,
+			0, (ROWS/2)+3,
+			INVIS_BORDERCHARS,
+			true);
+		#ifndef _WIN32
+		fflush(stdout);
+		#endif
+	}
+}
+
+void print_usage_msg(void)
+{
+	wprintf(L"usage: %s [options]\n\n"
+
+		  L"{-D COLSxROWS | -DCOLSxROWS | \n"
+		  L" --dimensions=COLSxROWS}        Sets the dimensions of the grid and viewport\n"
+		  L"-d, --debug                     Enables debug output\n"
+		  L"-h, --help                      Displays this help message\n\n"
+
+		  L"(press 'h' or '?' in the simulator to open the keybinds menu)\n"
+		  , PROG_NAME);
+	exit(1);
+}
+
+void get_dims_from_str(char *s)
+{
+	for (char *p = s; *p != '\0'; p++) {
+		if (*p == 'x' && *(p+1) != '\0') {
+			// the (n+7)&~7 returns n rounded up to the nearest multiple of 8
+			COLS = ((uint16_t) strtoul(s,   NULL, 10) + 7) & ~7;
+			ROWS = ((uint16_t) strtoul(p+1, NULL, 10) + 1) & ~1;
+			CC = COLS/8;
+			N_CELLS = ROWS*COLS;
+			GRID_EL_N = N_CELLS/8;
+			return;
+		}
+	}
+	
+	print_usage_msg();
+}
+
+void arg_parse(int32_t argc, char **argv)
+{
+	PROG_NAME = argv[0];
+
+	for (int32_t arg_n = 0; ++arg_n < argc;) {
+		if (argv[arg_n][0] == '-') {
+			if (argv[arg_n][1] == '-') {
+				// dimensions=
+				// 123456789AB
+				if (strncmp(argv[arg_n]+2, "dimensions=", 11) == 0)
+					// cur_arg = --dimensions=COLSxROWS
+					//           0123456789ABCD
+					// (*cur_arg)+2+11 == "COLSxROWS"
+					get_dims_from_str(argv[arg_n]+2+11);
+				else if (strcmp(argv[arg_n]+2, "debug") == 0)
+					SET_FLAG(DEBUG);
+				else if (strcmp(argv[arg_n]+2, "help") == 0)
+					print_usage_msg();
+			} else {
+				char *argp = argv[arg_n];
+				bool is_D = false;
+				while (*argp++ && !is_D) {
+					switch (*argp) {
+						case '?':
+						case 'h':
+							print_usage_msg();
+							break;
+						case 'd': 
+							SET_FLAG(DEBUG);
+							break;
+						case 'D':
+							is_D = true;
+							if (*(argp+1) == '\0' && arg_n < argc-1)
+								// pass in the next argument in the list if this argument is over and
+								// isn't the last in the list
+								get_dims_from_str(argv[arg_n+1]);
+							else if (*(argp+1) != '\0')
+								// pass in this argument because the 'D' isn't the end
+								get_dims_from_str(argp+1);
+							else {
+								// print the usage message because the user didn't put the dimensions after 
+								// the "-D"
+								print_usage_msg();
+							}
+							break;
+					}
+				}
+			}
+		}
+	}
+}
+
+int32_t main(int32_t argc, char **argv)
 {
 	// define the locale to support Windows and other platforms (since Windows wants a different value for some reason)
 	cp_set_unicode_locale();
 	fwide(stdout, 1);
 	
-
-	if (argc > 1) { // arguments should be in "COLSxROWS"
-		for (size_t i=0; i < strlen(argv[1]); ++i) {
-			if (argv[1][i] == 'x') {
-				char* tmp2 = (char*) malloc(sizeof(char) * (i+1));
-				char* tmp3 = (char*) malloc(sizeof(char) * (strlen(argv[1])-1));
-				strcpy(tmp2, argv[1]);
-				for (size_t j=(i+1); j<strlen(argv[1]); ++j) {
-					tmp3[j-i-1] = argv[1][j];
-				}
-
-				/* the expression below rounds it up to the nearest multiple of 8 (or 2 for rows) because 
-				 * i can't be bothered to fix my code to work with dimensions that aren't multiples of 8
-				 */
-				ROWS = (atoi(tmp3)+1) & ~1; 
-				COLS = (atoi(tmp2)+7) & ~7;
-				CC = COLS/8;
-				N_CELLS = ROWS*COLS;
-				GRID_EL_N = N_CELLS/8;
-			}
-		}
-	}
+	arg_parse(argc, argv);
 	
 	//printf("finished checking command line arguments\n");
 
@@ -362,8 +451,10 @@ int main(int argc, char *argv[])
 	grid[22*CC+2] = 0x04;
 	grid[22*CC+3] = 0x80;
 	
-	wprintf(L"\x1b[2J\x1b[?25l"); // clears the screen and hides the cursor
-	print_grid(grid);
+#ifndef _WIN32
+	wprintf(L"\x1b[2J\x1b[?25l"); // hides the cursor
+#endif
+	print_grid(grid); // clear the screen
 	
 	printbox(
 		COLS+2,(ROWS/2)+2,
@@ -378,7 +469,7 @@ int main(int argc, char *argv[])
 	int in_a_menu = 0;
 	int paused = 0;
 	
-	#ifndef _WIN32
+#ifndef _WIN32
 	struct termios old_term, new_term;
 	tcgetattr(STDIN_FILENO, &old_term);
 	new_term = old_term;
@@ -386,16 +477,15 @@ int main(int argc, char *argv[])
 	new_term.c_cc[VMIN] = 0;
 	new_term.c_cc[VTIME] = 0;
 	tcsetattr(STDIN_FILENO, TCSANOW, &new_term);
-	#endif
+#endif
 
 	while (1) {
 		// keyboard input polling (moved into this loop from a separate thread because apparently a thread sucks for this)
-		#ifdef _WIN32
-		if (kbhit()) {
-			ch = getch();
-		#else
+#ifdef _WIN32
+		if (kbhit() && (ch = getch())) {
+#else
 		if (read(STDIN_FILENO, &ch, 1) == 1) {
-		#endif
+#endif
 			switch (ch) {
 				case 'q':
 				case 'Q':
@@ -434,34 +524,12 @@ int main(int argc, char *argv[])
 						display_paused_notif();
 						help_screen();
 					} else {
-						if (COLS<HELP_MENU_WIDTH || (ROWS/2)<HELP_MENU_HEIGHT) {
-							// if COLS and ROWS are within certain parameters, 
-							printbox(
-								HELP_MENU_WIDTH,HELP_MENU_HEIGHT,
-								0,(ROWS/2)+3,
-								INVIS_BORDERCHARS,
-								true);
-						#ifndef _WIN32
-							fflush(stdout);
-						#endif
-						} else
-							print_grid(grid);
+						close_help_screen(grid);
 					}
 					break;
 				case 0x1b: // the escape key
 					in_a_menu = 0;
-					if (COLS<HELP_MENU_WIDTH || (ROWS/2)<HELP_MENU_HEIGHT) {
-						printbox(
-							HELP_MENU_WIDTH,HELP_MENU_HEIGHT,
-							0,(ROWS/2)+3,
-							INVIS_BORDERCHARS,
-							true);
-					#ifndef _WIN32
-						fflush(stdout);
-					#endif
-					} else {
-						print_grid(grid);
-					}
+					close_help_screen(grid);
 					break;
 			}
 		}
@@ -469,16 +537,7 @@ int main(int argc, char *argv[])
 		if (ready_to_quit) {
 			if (in_a_menu) {
 				in_a_menu = 0;
-				if (COLS>=30)
-					print_grid(grid);
-				else {
-					printbox(
-						30,7,
-						0,(ROWS/2)+3,
-						INVIS_BORDERCHARS,
-						true);
-					fflush(stdout);
-				}
+				close_help_screen(grid);
 			}
 			wprintf(L"\x1b[%" PRIu16 L";1f", (ROWS/2)+3);
 			break;
@@ -509,17 +568,17 @@ int main(int argc, char *argv[])
 			print_grid(grid);
 		}
 
-		#ifdef _WIN32
+#ifdef _WIN32
 		sleepns(1000000000/20 - 10000000);
-		#else
+#else
 		sleepns(1000000000/20); // sleeps to keep a framerate (`sleepns` takes nanoseconds)
-		#endif
+#endif
 	}
 
-	#ifndef _WIN32
+#ifndef _WIN32
 	tcsetattr(STDIN_FILENO, TCSANOW, &old_term);
 	wprintf(L"\x1b[?25h");
-	#endif
+#endif
 
 	free(grid);
 
