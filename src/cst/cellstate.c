@@ -6,10 +6,7 @@
 #include <stddef.h>
 #include <ctype.h>
 
-#define BIT(i) (1<<(i))
-#define FLAG_SET(f) ((runtime_flags & f) != 0)
-#define SET_FLAG(f) (runtime_flags |= f)
-#define IFDBG if (FLAG_SET(DEBUG))
+#include "../include/runtime_flags.h"
 
 
 #define MAX_DIM_STR_LEN 5
@@ -41,11 +38,6 @@ struct FileData {
 	bool failed;
 }; // should be about 48 bytes
 
-enum FLAGS {
-	DEBUG = BIT(0),
-	QUIET = BIT(1),
-	FORCE = BIT(2)
-};
 static uint8_t runtime_flags = 0;
 
 bool path_has_extension(struct FileData *file, char **path_ext_sep_out)

@@ -1,7 +1,6 @@
 build/*
 obj/*
 
-nob
-nob.old
-nob.exe
-nob.exe.old
+states/*.bin
+
+.cache/

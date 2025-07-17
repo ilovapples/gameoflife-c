@@ -2,6 +2,7 @@
 #define BORDER_H
 
 #include <inttypes.h>
+#include <wchar.h>
 #include <stdbool.h>
 
 void cp_set_unicode_locale(void);
