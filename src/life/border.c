@@ -13,7 +13,7 @@
 
 #include "border.h"
 
-void cp_set_unicode_locale()
+void cp_set_unicode_locale(void)
 {
 	#ifdef _WIN32
 		setlocale(LC_ALL, ".UTF-8");
@@ -52,7 +52,7 @@ void goxy(uint16_t x, uint16_t y)
 	printf("\x1B[%" PRIu16 ";%" PRIu16 "f", y+1, x+1);
 }
 
-void clrscreen()
+void clrscreen(void)
 {
 	printf("\x1B[2J");
 }

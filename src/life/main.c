@@ -5,7 +5,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <wchar.h>
-#include <locale.h>
 
 #ifdef _WIN32
 	#include <windows.h>
@@ -17,7 +16,6 @@
 
 
 #include "border.h"
-#include "../../include/runtime_flags.h"
 #include "viewing.h"
 #include "big_header.h"
 #include "arg_parse.h"
@@ -36,6 +34,7 @@ uint16_t N_CELLS = 2304; // ROWS*COLS;
 uint16_t GRID_EL_N = 288; // N_CELLS>>3;
 
 uint8_t *grid;
+uint8_t *prev_grid;
 bool bin_loaded = false;
 
 uint8_t runtime_flags = 0;
@@ -70,13 +69,11 @@ void set_dims(uint16_t rows, uint16_t cols)
  * >3: dies
  * dead cell with 3: becomes alive
  */
-uint8_t *update(void)
+void update(void)
 {
-	uint8_t *new_grid = (uint8_t *) calloc(GRID_EL_N, sizeof(uint8_t));
-
 	for (uint16_t i=0; i < (N_CELLS); ++i) {
 		uint8_t num_neighbors = 0;
-		// cur cell: BIT(grid[i>>3], i%8)
+		// cur cell: BIT(prev_grid[i>>3], i%8)
 		uint16_t cell_col = i%COLS;
 		uint16_t cell_row = i/COLS;
 
@@ -92,16 +89,14 @@ uint8_t *update(void)
 
 				uint16_t neighbor_i = i + dx + (dy*COLS);
 
-				num_neighbors += GETBIT(grid[neighbor_i/8], neighbor_i%8);
+				num_neighbors += GETBIT(prev_grid[neighbor_i/8], neighbor_i%8);
 			}
 		}
 
-		if ((GETBIT(grid[i/8], i%8) && num_neighbors >= 2 && num_neighbors <= 3) || 
-		   (!GETBIT(grid[i/8], i%8) && num_neighbors == 3))
-			SETBIT(new_grid[i/8], i%8);
+		if ((GETBIT(prev_grid[i/8], i%8) && num_neighbors >= 2 && num_neighbors <= 3) || 
+		   (!GETBIT(prev_grid[i/8], i%8) && num_neighbors == 3))
+			SETBIT(grid[i/8], i%8);
 	}
-
-	return new_grid;
 }
 
 int32_t main(int32_t argc, char **argv)
@@ -112,6 +107,8 @@ int32_t main(int32_t argc, char **argv)
 	
 	arg_parse(argc, argv);
 	
+	prev_grid = calloc(GRID_EL_N, sizeof(uint8_t));
+
 	//printf("finished checking command line arguments\n");
 	if (!bin_loaded) {
 		grid = (uint8_t *) calloc(GRID_EL_N, sizeof(uint8_t));
@@ -120,7 +117,7 @@ int32_t main(int32_t argc, char **argv)
 			exit(1);
 		}
 	
-		// initialize the default cell positions (this can be changed, but i haven't made an easier way to do that just yet)
+		// initialize the default cell positions (this can be changed, but you have to use `cst`)
 		grid[ 4*CC+4] = 0x20;
 		grid[ 5*CC+2] = 0x08;
 		grid[ 5*CC+4] = 0x80;
@@ -205,9 +202,9 @@ int32_t main(int32_t argc, char **argv)
 				case 'N':
 					if (paused && !in_a_menu) {
 						// it'd be weird if this did something even when it isn't paused
-						uint8_t *new_grid = update();
-						memcpy(grid, new_grid, GRID_EL_N);
-						free(new_grid);
+						memcpy(prev_grid, grid, GRID_EL_N);
+						memset(grid, 0, GRID_EL_N);
+						update();
 						print_grid(grid);
 					}
 					break;
@@ -258,9 +255,9 @@ int32_t main(int32_t argc, char **argv)
 
 		// generate the new grid and update the old one
 		if (!paused) {
-			uint8_t *new_grid = update();
-			memcpy(grid, new_grid, GRID_EL_N);
-			free(new_grid);
+			memcpy(prev_grid, grid, GRID_EL_N);
+			memset(grid, 0, GRID_EL_N);
+			update();
 			print_grid(grid);
 		}
 
@@ -277,6 +274,7 @@ int32_t main(int32_t argc, char **argv)
 #endif
 
 	free(grid);
+	free(prev_grid);
 
 	return 0;
 }

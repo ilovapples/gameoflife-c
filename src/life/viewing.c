@@ -56,7 +56,7 @@ void print_grid(uint8_t *grid)
 	COORD row_Size = { COLS,1 };
 	COORD upper_left_Coord = { 0, 0 };
 
-	CHAR_INFO *curRow_Buffer = malloc(COLS * sizeof(*curRow_Buffer));
+	CHAR_INFO *curRow_Buffer = calloc(COLS, sizeof(*curRow_Buffer));
 	for (uint8_t row = 0; row < ROWS; row += 2) {
 		SMALL_RECT curRow_Region = { 1,1+(row/2), COLS,1+(row/2) };
 		for (uint16_t col = 0; col < COLS; ++col) {

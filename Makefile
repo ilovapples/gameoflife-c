@@ -22,6 +22,8 @@ endif
 
 all: $(BUILD)/$(LIFE_TARGET)$(TARGET_EXT) $(BUILD)/$(CST_TARGET)$(TARGET_EXT)
 
+clean:
+	rm build/* obj/*
 
 # LIFE BUILD RULES
 
