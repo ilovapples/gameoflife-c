@@ -6,7 +6,7 @@
 #include <stddef.h>
 #include <ctype.h>
 
-#include "../include/runtime_flags.h"
+#include "runtime_flags.h"
 
 
 #define MAX_DIM_STR_LEN 5
@@ -36,7 +36,7 @@ struct FileData {
 	uint16_t n_cols;
 	uint16_t n_rows;
 	bool failed;
-}; // should be about 48 bytes
+};
 
 static uint8_t runtime_flags = 0;
 

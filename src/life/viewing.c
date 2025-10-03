@@ -5,7 +5,7 @@
 #include <stdio.h>
 
 #include "border.h"
-#include "../../include/runtime_flags.h"
+#include "runtime_flags.h"
 #include "big_header.h"
 #include "viewing.h"
 

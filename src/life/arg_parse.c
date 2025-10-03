@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#include "../../include/runtime_flags.h"
+#include "runtime_flags.h"
 #include "big_header.h"
 #include "arg_parse.h"
 
