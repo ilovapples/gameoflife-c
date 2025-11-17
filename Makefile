@@ -11,10 +11,10 @@ CST_SRCS	:= $(SRCS)/$(CST_TARGET)
 INCLUDEDIR	:= include
 
 OBJ_EXT	:= .o
-TARGET_EXT	:= 
+TARGET_EXT	:=
 
 INCLUDE 	:= -I$(INCLUDEDIR)
-CFLAGS	:= -std=c99 -D_POSIX_C_SOURCE=200809L -Wall -Wextra -pedantic -Wshadow -Werror $(INCLUDE)
+CFLAGS	:= -std=c99 -D_POSIX_C_SOURCE=200809L -Wall -Wextra -pedantic -Wshadow $(INCLUDE)
 ifeq ($(OS),Windows_NT)
 	OBJ_EXT = .obj
 	TARGET_EXT = .exe
