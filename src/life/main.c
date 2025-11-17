@@ -80,9 +80,9 @@ void update(void)
 		for (int8_t dy = -1; dy <= 1; ++dy) {
 			for (int8_t dx = -1; dx <= 1; ++dx) {
 				if (dx==0 && dy == 0) continue;
-				
+
 				// we'll treat any neighboring "cell" outside the grid boundaries as dead
-				if ((cell_col == 0      && dx == -1) 
+				if ((cell_col == 0      && dx == -1)
 				 || (cell_col == COLS-1 && dx ==  1)
 				 || (cell_row == 0      && dy == -1)
 				 || (cell_row == ROWS-1 && dy ==  1)) continue;
@@ -93,7 +93,7 @@ void update(void)
 			}
 		}
 
-		if ((GETBIT(prev_grid[i/8], i%8) && num_neighbors >= 2 && num_neighbors <= 3) || 
+		if ((GETBIT(prev_grid[i/8], i%8) && num_neighbors >= 2 && num_neighbors <= 3) ||
 		   (!GETBIT(prev_grid[i/8], i%8) && num_neighbors == 3))
 			SETBIT(grid[i/8], i%8);
 	}
@@ -104,9 +104,9 @@ int32_t main(int32_t argc, char **argv)
 	// define the locale to support Windows and other platforms (since Windows wants a different value for some reason)
 	cp_set_unicode_locale();
 	fwide(stdout, 1);
-	
+
 	arg_parse(argc, argv);
-	
+
 	prev_grid = calloc(GRID_EL_N, sizeof(uint8_t));
 
 	//printf("finished checking command line arguments\n");
@@ -116,7 +116,7 @@ int32_t main(int32_t argc, char **argv)
 			fprintf(stderr, "failed to allocate memory for grid");
 			exit(1);
 		}
-	
+
 		// initialize the default cell positions (this can be changed, but you have to use `cst`)
 		grid[ 4*CC+4] = 0x20;
 		grid[ 5*CC+2] = 0x08;
@@ -145,10 +145,10 @@ int32_t main(int32_t argc, char **argv)
 		grid[22*CC+2] = 0x04;
 		grid[22*CC+3] = 0x80;
 	}
-	
+
 	wprintf(L"\x1b[2J\x1b[?25l"); // hides the cursor and clears the screen
 	print_grid(grid); // clear the screen
-	
+
 	printbox(
 		COLS+2,(ROWS/2)+2,
 		0,0,
@@ -156,12 +156,12 @@ int32_t main(int32_t argc, char **argv)
 		false);
 
 	//int was_too_small = 0;
-	
+
 	char ch;
 	int ready_to_quit = 0;
 	int in_a_menu = 0;
 	int paused = 0;
-	
+
 #ifndef _WIN32
 	struct termios old_term, new_term;
 	tcgetattr(STDIN_FILENO, &old_term);

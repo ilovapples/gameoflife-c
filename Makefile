@@ -20,7 +20,7 @@ ifeq ($(OS),Windows_NT)
 	TARGET_EXT = .exe
 endif
 
-all: $(BUILD)/$(LIFE_TARGET)$(TARGET_EXT) $(BUILD)/$(CST_TARGET)$(TARGET_EXT)
+all: $(OBJS) $(BUILD) $(BUILD)/$(LIFE_TARGET)$(TARGET_EXT) $(BUILD)/$(CST_TARGET)$(TARGET_EXT)
 
 clean:
 	rm build/* obj/*
@@ -54,3 +54,8 @@ $(BUILD)/$(CST_TARGET)$(TARGET_EXT): $(OBJS)/cellstate$(OBJ_EXT)
 $(OBJS)/cellstate$(OBJ_EXT): $(CST_SRCS)/cellstate.c
 	gcc -o $(OBJS)/cellstate$(OBJ_EXT) -c $(CST_SRCS)/cellstate.c $(CFLAGS)
 
+
+$(OBJS):
+	mkdir -p $(OBJS)
+$(BUILD):
+	mkdir -p $(BUILD)
